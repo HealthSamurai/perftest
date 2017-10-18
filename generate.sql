@@ -28,13 +28,13 @@ DROP FUNCTION IF EXISTS random_datetime(start_year numeric, end_year numeric) CA
 CREATE OR REPLACE FUNCTION random_datetime(start_year numeric, end_year numeric)
 RETURNS text AS $$
 SELECT random(start_year, end_year)::text
-|| '-'
-|| lpad(random(1, 12)::text, 2, '0')
-|| '-'
-|| lpad(random(1, 28)::text, 2, '0')
-|| 'T'
-|| random(10,23)
-|| ':00:00-07:00';
+           || '-'
+           || lpad(random(1, 12)::text, 2, '0')
+           || '-'
+           || lpad(random(1, 28)::text, 2, '0')
+           || 'T'
+           || random(10,23)
+           || ':00:00-07:00';
 $$ LANGUAGE SQL;
 
 \echo 'Create generation function: "random_phone()".'
@@ -207,8 +207,7 @@ RETURNS bigint AS $$
   select count(*) inserted;
 $$ LANGUAGE SQL;
 
--- TODO count for patient
-\echo 'Create generation function: "insert_observations(_count_per_patient_ integer)".'
+\echo 'Create generation function: "insert_observations(_total_count_ integer)".'
 DROP FUNCTION IF EXISTS insert_observations(_total_count_ integer) CASCADE;
 CREATE OR REPLACE FUNCTION insert_observations(_total_count_ integer)
 RETURNS bigint AS $$
@@ -228,8 +227,8 @@ with observations_source as (
          row_number() over ()
       from patient
       cross join generate_series(0, ceil(_total_count_::float
-      / (select count(*)
-      from patient)::float)::integer)
+                                      / (select count(*)
+                                      from patient)::float)::integer)
       order by random()
   ), observation_data as (
     select
@@ -255,56 +254,54 @@ with observations_source as (
              'system', 'http://www.bmc.nl/zorgportal/identifiers/observations',
              'value', random(6320, 6329)::text
            )],
-
-           'code', json_build_object('coding', ARRAY[
+         'code', json_build_object('coding', ARRAY[
            json_build_object(
            'system', 'loinc.org',
            'code', loinc_code,
            'display', loinc_name)]),
-           'subject', json_build_object(
+         'subject', json_build_object(
              'id', patient_id,
              'resourceType', 'Patient',
              'display', patient_name || ' '::text || patient_family),
-             'effective', json_build_object(
+         'effective', json_build_object(
                           'period', json_build_object(
                                     'start', random_datetime(2012, 2013),
                                     'end', random_datetime(2014, 2015))),
-           'issued', random_datetime(2012, 2012),
-   'performer', ARRAY[json_build_object(
-   'resourceType', 'Practitioner',
-   'id', ceil(random() * 1000),
-   'display', 'Random Name'
-   -- TODO practitioners
-   )],
-   -- TODO divide
-   'value', json_build_object(
-            'quantity', json_build_object(
-            'value', random(1,10),
-            'unit', 'g/dl',
-            'code', 'g/dl',
-            'system', 'http://unitsofmeasure.org')),
-   'interpretation', json_build_object('coding', ARRAY[
-                     'system', 'http://hl7.org/fhir/v2/0078'
-                     'code', 'L',
-                     'display', 'Low'
-                     ]),
--- removed top
-'referenceRange', ARRAY[
-json_build_object(
-'low', json_build_object(
-'value', random(10,14),
-'unit', 'g/dl',
-'code', 'g/dl',
-'system', 'http://unitsofmeasure.org'
-)),
-json_build_object(
-'high', json_build_object(
-'value', random(15,20),
-'unit', 'g/dl',
-'code', 'g/dl',
-'system', 'http://unitsofmeasure.org'
-))
-]
+         'issued', random_datetime(2012, 2012),
+         'performer', ARRAY[
+           json_build_object(
+             'resourceType', 'Practitioner',
+             'id', ceil(random() * 1000),
+             'display', 'Random Name'
+          )],
+         'value', json_build_object(
+           'quantity', json_build_object(
+             'value', random(1,10),
+             'unit', 'g/dl',
+             'code', 'g/dl'
+             'system', 'http://unitsofmeasure.org'
+          )),
+          'interpretation', json_build_object(
+                              'coding', ARRAY[
+                                'system', 'http://hl7.org/fhir/v2/0078'
+                                'code', 'L',
+                                'display', 'Low'
+                             ]),
+          'referenceRange', ARRAY[
+            json_build_object(
+              'low', json_build_object(
+                'value', random(10,14),
+                'unit', 'g/dl',
+                'code', 'g/dl',
+                'system', 'http://unitsofmeasure.org'
+            )),
+            json_build_object(
+              'high', json_build_object(
+              'value', random(15,20),
+              'unit', 'g/dl',
+              'code', 'g/dl',
+              'system', 'http://unitsofmeasure.org'
+           ))]
         )::jsonb as obj
         FROM observation_data
         LIMIT _total_count_
@@ -314,7 +311,7 @@ json_build_object(
   select count(*) inserted;
 $$ LANGUAGE SQL;
 
-\echo 'Create generation function: "insert_medicationstatements(_count_per_patient_ integer)".'
+\echo 'Create generation function: "insert_medicationstatements(_total_count_ integer)".'
 DROP FUNCTION IF EXISTS insert_medicationstatements(_total_count_ integer) CASCADE;
 CREATE OR REPLACE FUNCTION insert_medicationstatements(_total_count_ integer)
 RETURNS bigint AS $$
@@ -323,9 +320,9 @@ with observations_source as (
          short_name as loinc_name,
          row_number() over ()
     from common_observations
-    cross join generate_series(0, ceil(_total_count_::float
-                                       / (select count(*)
-                                          from common_observations)::float)::integer)
+           cross join generate_series(0, ceil(_total_count_::float
+                                              / (select count(*)
+                                                   from common_observations)::float)::integer)
     order by random()
   ), patients_source as (
   select id as patient_id,
@@ -334,8 +331,8 @@ with observations_source as (
          row_number() over ()
       from patient
       cross join generate_series(0, ceil(_total_count_::float
-      / (select count(*)
-      from patient)::float)::integer)
+                                      / (select count(*)
+                                      from patient)::float)::integer)
       order by random()
   ), medicationstatement_data as (
     select
@@ -354,74 +351,71 @@ with observations_source as (
             'versionId', gen_random_uuid(),
             'lastUpdated', CURRENT_TIMESTAMP
           ),
-
-          'identifier', ARRAY[
-          json_build_object(
-          'use', 'official',
-          'system', 'http://www.bmc.nl/portal/medstatements',
-          'value', random(11111111111, 9999999999))],
-
+         'identifier', ARRAY[
+           json_build_object(
+            'use', 'official',
+            'system', 'http://www.bmc.nl/portal/medstatements',
+            'value', random(11111111111, 9999999999)
+          )],
          'status', 'active',
          'category', json_build_object('coding', ARRAY[
            json_build_object(
-           'system', 'http://hl7.org/fhir/medication-statement-category',
-           'code', 'inpatient',
-           'display', 'Inpatient')]),
-
-'medication', json_build_object(
-              'reference', json_build_object(
-              'reference', '#med' || random(1, 1000)::text),
-              'effectiveDateTime', random_date(),
-              'dateAsserted', random_date()),
-
-          'subject', json_build_object(
+             'system', 'http://hl7.org/fhir/medication-statement-category',
+             'code', 'inpatient',
+             'display', 'Inpatient')]),
+         'medication', json_build_object(
+           'reference', json_build_object(
+             'reference', '#med' || random(1, 1000)::text),
+             'effectiveDateTime', random_date(),
+             'dateAsserted', random_date()),
+         'subject', json_build_object(
             'id', patient_id,
             'resourceType', 'Patient',
             'display', patient_name || ' '::text || patient_family),
-
-          'informationSource', json_build_object(
+         'informationSource', json_build_object(
             'id', patient_id,
             'resourceType', 'Patient',
             'display', patient_name || ' '::text || patient_family),
-          'taken', 'y',
-          'reasonCode', ARRAY[json_build_object('coding', ARRAY[
-            json_build_object(
-            'system', 'http://snomed.info/sct',
-            'code', random(11111111, 9999999),
-            'display', 'Restless Legs')])],
+         'taken', 'y',
+         'reasonCode', ARRAY[
+           json_build_object('coding',
+             ARRAY[
+               json_build_object(
+                 'system', 'http://snomed.info/sct',
+                 'code', random(11111111, 9999999),
+                 'display', 'Restless Legs')])],
           'dosage', ARRAY[
-                    json_build_object(
-                      'sequence', 1,
-                      'text', '1-2 tablets once daily',
-                      'timing', json_build_object(
-                                'repeat', json_build_object(
-                                          'frequency', 1,
-                                           'period', 1,
-                                           'periodUnit', 'd')),
-                    'asNeededCodeableConcept', json_build_object('coding', ARRAY[
-                    json_build_object(
-                    'system', 'http://snomed.info/sct',
-                    'code', random(1111111,9999999),
-                    'display', 'Restless Legs')]),
-
-                    'route', json_build_object('coding', ARRAY[
-                    json_build_object(
-                    'system', 'http://snomed.info/sct',
-                    'code', random(1111111,9999999),
-                    'display', 'Oral Route')]),
-
-                    'doseRange', json_build_object(
-                                 'low', json_build_object(
-                                        'value', 1,
-                                        'unit', 'TAB',
-                                        'code', 'TAB',
-                                        'system', 'http://hl7.org/fhir/v3/orderableDrugForm'),
-
-                                 'high', json_build_object(
-                                        'value', 2,
-                                        'unit', 'TAB',
-                                        'code', 'TAB',
-                                        'system', 'http://hl7.org/fhir/v3/orderableDrugForm')))
+            json_build_object(
+              'sequence', 1,
+              'text', '1-2 tablets once daily',
+              'timing', json_build_object(
+                          'repeat', json_build_object(
+                            'frequency', 1,
+                            'period', 1,
+                            'periodUnit', 'd')),
+           'asNeededCodeableConcept', json_build_object(
+             'coding', ARRAY[
+               json_build_object(
+                 'system', 'http://snomed.info/sct',
+                  'code', random(1111111,9999999),
+                  'display', 'Restless Legs')]),
+           'route', json_build_object(
+             'coding', ARRAY[
+               json_build_object(
+                 'system', 'http://snomed.info/sct',
+                 'code', random(1111111,9999999),
+                 'display', 'Oral Route')]),
+            'doseRange', json_build_object(
+              'low', json_build_object(
+                'value', 1,
+                'unit', 'TAB',
+                'code', 'TAB',
+                'system', 'http://hl7.org/fhir/v3/orderableDrugForm'),
+              'high', json_build_object(
+                'value', 2,
+                'unit', 'TAB',
+                'code', 'TAB',
+                'system', 'http://hl7.org/fhir/v3/orderableDrugForm')))
 ])::jsonb as obj
         FROM medicationstatement_data
         LIMIT _total_count_
@@ -431,6 +425,6 @@ with observations_source as (
   select count(*) inserted;
 $$ LANGUAGE SQL;
 
-select insert_patients(10000);
-select insert_observations(100*10000);
-select insert_medicationstatements(100*10000);
+select insert_patients(1000000);
+select insert_observations(10*1000000);
+select insert_medicationstatements(10*1000000);
