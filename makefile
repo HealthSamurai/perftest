@@ -10,4 +10,7 @@ populate:
 bench: $(BENCHMARKS)
 
 %.sql:
-	docker exec -it aiddb pgbench -c 8 -j 2 -r -T 10 -f /benchmarks/$*.sql proto
+	docker exec -it aiddb pgbench -c 4 -j 2 -r -t 1000 -f /benchmarks/$*.sql proto
+
+connect:
+	psql proto -U postgres -p 5432 -h localhost
