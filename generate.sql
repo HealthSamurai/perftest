@@ -132,14 +132,12 @@ RETURNS bigint AS $$
     join organizations_source using (row_number)
   ), inserted as (
     INSERT into patient (id, txid, status, resource)
-    SELECT
-    ((obj->>'id')::integer),
-    0, 'created', obj
+    SELECT (obj->>'id'), 0, 'created', obj
     FROM (
       SELECT
         json_build_object(
          'resourceType', 'Patient',
-         'id', nextval(pg_get_serial_sequence('patient', 'id')),
+         'id', nextval('patient_id')::text,
          'meta', json_build_object(
             'versionId', gen_random_uuid(),
             'lastUpdated', CURRENT_TIMESTAMP
@@ -237,12 +235,12 @@ with observations_source as (
       join patients_source using (row_number)
   ), inserted as (
     INSERT into observation (id, txid, status, resource)
-    SELECT (obj->>'id')::integer, 0, 'created', obj
+    SELECT (obj->>'id'), 0, 'created', obj
     FROM (
       SELECT
         json_build_object(
          'resourceType', 'Observation',
-         'id', nextval(pg_get_serial_sequence('observation', 'id')),
+         'id', nextval('observation_id')::text,
          'meta', json_build_object(
             'versionId', gen_random_uuid(),
             'lastUpdated', CURRENT_TIMESTAMP
@@ -278,12 +276,12 @@ with observations_source as (
            'quantity', json_build_object(
              'value', random(1,10),
              'unit', 'g/dl',
-             'code', 'g/dl'
+             'code', 'g/dl',
              'system', 'http://unitsofmeasure.org'
           )),
           'interpretation', json_build_object(
                               'coding', ARRAY[
-                                'system', 'http://hl7.org/fhir/v2/0078'
+                                'system', 'http://hl7.org/fhir/v2/0078',
                                 'code', 'L',
                                 'display', 'Low'
                              ]),
@@ -341,12 +339,12 @@ with observations_source as (
       join patients_source using (row_number)
   ), inserted as (
     INSERT into medicationstatement (id, txid, status, resource)
-    SELECT (obj->>'id')::integer, 0, 'created', obj
+    SELECT (obj->>'id'), 0, 'created', obj
     FROM (
       SELECT
         json_build_object(
          'resourceType', 'MedicationStatement',
-         'id', nextval(pg_get_serial_sequence('medicationstatement', 'id')),
+         'id', nextval('medicationstatement_id'),
          'meta', json_build_object(
             'versionId', gen_random_uuid(),
             'lastUpdated', CURRENT_TIMESTAMP
@@ -416,7 +414,7 @@ with observations_source as (
                 'unit', 'TAB',
                 'code', 'TAB',
                 'system', 'http://hl7.org/fhir/v3/orderableDrugForm')))
-])::jsonb as obj
+        ])::jsonb as obj
         FROM medicationstatement_data
         LIMIT _total_count_
     ) _
