@@ -7,11 +7,13 @@ DROP TABLE IF EXISTS organization_names;
 DROP TABLE IF EXISTS common_observations;
 
 CREATE TABLE first_names (
+  id SERIAL PRIMARY KEY,
   sex text,
   first_name text
 );
 
 CREATE TABLE last_names (
+  id SERIAL PRIMARY KEY,
   last_name text
 );
 
