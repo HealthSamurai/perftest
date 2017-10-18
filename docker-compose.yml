@@ -1,0 +1,18 @@
+version: "3"
+services:
+  aidbox_db:
+    image: aidbox/aidboxdb:0.0.1-alpha6
+    container_name: aiddb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data:/data
+      - ./seed-data:/seed-data
+      - ./benchmarks:/benchmarks
+    environment:
+      POSTGRES_USER: ghost
+      POSTGRES_DB: proto
+      POSTGRES_PASSWORD: 123123
+
+volumes:
+  data: {}
