@@ -1,5 +1,5 @@
-\set aid random(1, 88000 * :scale)
+\set last_name_id random(1, 88000)
 
 BEGIN;
-SELECT * FROM patient WHERE string_join(knife_extract_text(resource, '[["name","given"], ["name","family"]]')) ilike '%' || (SELECT last_name from last_names where id = :aid) || '%';
+SELECT * FROM patient WHERE string_join(knife_extract_text(resource, '[["name","given"], ["name","family"]]')) ilike '%' || (SELECT last_name from last_names where id = :last_name_id) || '%';
 END;

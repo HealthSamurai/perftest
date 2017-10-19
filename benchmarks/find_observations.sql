@@ -1,5 +1,5 @@
-\set aid random(1, 10000 * :scale)
+\set patient_id random(1, 1 * :scale)
 
 BEGIN;
-select * from observation where resource @> '{"subject": {"id": :aid}}'::jsonb;
+select * from observation where resource @> '{"subject": {"id": :patient_id}}'::jsonb;
 END;
