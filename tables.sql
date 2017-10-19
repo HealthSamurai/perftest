@@ -44,6 +44,9 @@ CREATE SEQUENCE observation_id;
 
 CREATE INDEX idx_observation_resource ON observation USING GIN ((resource) jsonb_path_ops);
 
+-- actually previous index is better, but knife extract text is used in query =/
+CREATE INDEX observation_resource_subject_id_text ON observation USING btree (knife_extract_text(observation.resource, '[["subject", "id"]]'));
+
 ALTER TABLE observation OWNER TO postgres;
 
 DROP TABLE IF EXISTS medicationstatement;
