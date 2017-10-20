@@ -1,0 +1,22 @@
+#!/bin/bash
+CONCURRENCY=4
+
+for PATIENTS in 10 1000 100000; do
+    psql proto -U postgres -p 5432 -h localhost -f util/create_tables.sql > /dev/null
+    psql proto -U postgres -p 5432 -h localhost -f util/functions.sql > /dev/null
+    psql proto -U postgres -p 5432 -h localhost \
+         -c "select insert_patients($PATIENTS);" \
+         -c "select insert_observations(1000 * $PATIENTS);" \
+         -c "select insert_medicationstatements(100 * $PATIENTS);" > /dev/null
+
+    for TEST in $(ls benchmarks); do
+        docker exec -it aiddb pgbench -c $CONCURRENCY -j 2 -r -t 1000 -s $PATIENTS -f /benchmarks/$TEST proto > results.txt
+        TPS=$(grep "(including connections establishing)" results.txt | cut -d " " -f 3 | xargs printf "%.0f")
+        echo "$TEST, $PATIENTS, $TPS" >> results.csv
+        rm results.txt
+    done;
+done;
+
+psql proto -U postgres -p 5432 -h localhost -f util/db_information.sql
+column -s, -t < results.csv
+rm results.csv

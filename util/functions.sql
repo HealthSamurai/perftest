@@ -423,6 +423,6 @@ with observations_source as (
   select count(*) inserted;
 $$ LANGUAGE SQL;
 
-select insert_patients(:patients_count);
-select insert_observations(1000 * :patients_count);
-select insert_medicationstatements(100 * :patients_count);
+-- select insert_patients(:patients_count);
+-- select insert_observations(1000 * :patients_count);
+-- select insert_medicationstatements(100 * :patients_count);
