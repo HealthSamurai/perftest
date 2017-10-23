@@ -202,7 +202,7 @@ RETURNS bigint AS $$
     ) _
     RETURNING id
   )
-  select count(*) inserted;
+  select count(*) from inserted;
 $$ LANGUAGE SQL;
 
 \echo 'Create generation function: "insert_observations(_total_count_ integer)".'
@@ -306,7 +306,7 @@ with observations_source as (
     ) _
     RETURNING id
   )
-  select count(*) inserted;
+  select count(*) from inserted;
 $$ LANGUAGE SQL;
 
 \echo 'Create generation function: "insert_medicationstatements(_total_count_ integer)".'
@@ -420,7 +420,7 @@ with observations_source as (
     ) _
     RETURNING id
   )
-  select count(*) inserted;
+  select count(*) from inserted;
 $$ LANGUAGE SQL;
 
 -- select insert_patients(:patients_count);
