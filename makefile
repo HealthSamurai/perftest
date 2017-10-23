@@ -5,9 +5,12 @@ CONCURRENCY=4
 all: populate bench
 
 populate:
-	psql proto -U postgres -p 5432 -h localhost -f load.sql
-	psql proto -U postgres -p 5432 -h localhost -f tables.sql
-	psql proto -U postgres -p 5432 -h localhost -v patients_count=$(PATIENTS) -f generate.sql
+	psql proto -U postgres -p 5432 -h localhost -f util/create_tables.sql > /dev/null
+	psql proto -U postgres -p 5432 -h localhost -f util/functions.sql > /dev/null
+	time psql proto -U postgres -p 5432 -h localhost -c "select insert_patients($(PATIENTS));"
+	time psql proto -U postgres -p 5432 -h localhost -c "select insert_observations(1000 * $(PATIENTS));"
+	time psql proto -U postgres -p 5432 -h localhost -c "select insert_medicationstatements(100 * $(PATIENTS));"
+
 
 bench: $(BENCHMARKS)
 	column -s, -t < results.csv
@@ -18,35 +21,8 @@ bench: $(BENCHMARKS)
 	echo "$*, $(PATIENTS), $$(grep "(including connections establishing)" results.txt | cut -d " " -f 3)" >> results.csv
 	rm results.txt
 
+stats:
+	psql proto -U postgres -p 5432 -h localhost -f util/db_information.sql
+
 connect:
 	psql proto -U postgres -p 5432 -h localhost
-
-tables:
-	psql proto -U postgres -p 5432 -h localhost -f sizes.sql
-
-options:
-	psql proto -U postgres -p 5432 -h localhost -f options.sql
-
-# # loop in for?
-# RUNS= 1.patients 2.patients
-# patients: $(RUNS)
-
-# proxy: patients
-# 	@echo $(PATIENTS)
-
-# %.patients: PATIENTS = $*
-# %.patients:
-# 	# @echo $(PATIENTS)
-#   @echo 1
-
-
-
-
-# NUMBERS = 1 2 3 4
-# doit:
-# 	$(foreach PATIENTS, $(NUMBERS), populate;)
-
-# qwert:
-# 	for PATIENTS in 1 2 3 4 ; do \
-# 	$(exec populate) ; \
-# 	done
