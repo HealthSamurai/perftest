@@ -44,6 +44,7 @@ trap cleanup EXIT
 
 docker-compose up -d
 
+RUN=`date +"%s"`
 WORK_DIR=`mktemp -d`
 
 # check if tmp dir was created
@@ -59,6 +60,7 @@ for PATIENTS in $RANGE; do
 	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_observations(1000 * $PATIENTS);"
 	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_medicationstatements(100 * $PATIENTS);"
     time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/indexes.sql
+    time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/save_db_sizes.sql -v size=$PATIENTS -v run=$RUN
 
     echo "benchmark $PATIENTS" > $WORK_DIR/$PATIENTS
 
@@ -77,8 +79,16 @@ for PATIENTS in $RANGE; do
     done;
 done;
 
+TYPE=""
+for SIZE in $RANGE; do
+TYPE="$TYPE \"$SIZE\" bigint,"
+done;
+s="CREATE type json_type AS (${TYPE::-1});"
+
 echo "DATABASE INFORMATION"
-docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/db_information.sql
+docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "DROP TYPE json_type;"
+docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "$s"
+docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/db_information.sql -v run=$RUN
 
 echo "BENCHMARK RESULTS"
-paste $WORK_DIR/$RANGE | awk '{for(x=1;x<=NF;x++)if(!(x % 2) || (x == 1))printf "%s", $x (x == NF || x == (NF-1)?"\n":" ")}' | column -t
+paste $WORK_DIR/* | awk '{for(x=1;x<=NF;x++)if(!(x % 2) || (x == 1))printf "%s", $x (x == NF || x == (NF-1)?"\n":" ")}' | column -t

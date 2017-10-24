@@ -76,6 +76,14 @@ $$ LANGUAGE plpgsql;
 
 SELECT load_dummy_data('/seed-data');
 
+CREATE TABLE IF NOT EXISTS db_sizes (
+       relation text,
+       sizes jsonb,
+       run bigint,
+       ts timestamp with time zone DEFAULT now(),
+       UNIQUE (relation, run)
+);
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS jsonknife;
 
