@@ -78,7 +78,6 @@ SELECT load_dummy_data('/seed-data');
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS jsonknife;
-CREATE EXTENSION If NOT EXISTS pg_trgm;
 
 -- hack to make array_to_string immutble
 CREATE OR REPLACE FUNCTION string_join(a text[])
@@ -103,8 +102,6 @@ CREATE TABLE patient (
 DROP SEQUENCE patient_id;
 CREATE SEQUENCE patient_id;
 
-CREATE INDEX patient_resource_name_ilike_idx ON patient using gin (string_join(knife_extract_text(resource, '[["name","given"], ["name","family"]]')) gin_trgm_ops);
-
 ALTER TABLE patient OWNER TO postgres;
 
 DROP TABLE IF EXISTS observation;
@@ -119,11 +116,6 @@ CREATE TABLE observation (
 
 DROP SEQUENCE observation_id;
 CREATE SEQUENCE observation_id;
-
-CREATE INDEX idx_observation_resource ON observation USING GIN ((resource) jsonb_path_ops);
-
--- actually previous index is better, but knife extract text is used in query =/
-CREATE INDEX observation_resource_subject_id_text ON observation USING btree (knife_extract_text(observation.resource, '[["subject", "id"]]'));
 
 ALTER TABLE observation OWNER TO postgres;
 

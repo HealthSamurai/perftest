@@ -58,6 +58,7 @@ for PATIENTS in $RANGE; do
     time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_patients($PATIENTS);"
 	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_observations(1000 * $PATIENTS);"
 	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_medicationstatements(100 * $PATIENTS);"
+    time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/indexes.sql
 
     echo "benchmark $PATIENTS" > $WORK_DIR/$PATIENTS
 
