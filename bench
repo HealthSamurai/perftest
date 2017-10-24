@@ -34,12 +34,14 @@ while getopts ':hr:c:t:' option; do
     esac
 done
 
+docker-compose up -d
+
 for PATIENTS in $RANGE; do
-    psql proto -U postgres -p 5432 -h localhost -f util/create_tables.sql &> /dev/null
-    psql proto -U postgres -p 5432 -h localhost -f util/functions.sql &> /dev/null
-    time psql proto -U postgres -p 5432 -h localhost -c "select insert_patients($PATIENTS);"
-	  time psql proto -U postgres -p 5432 -h localhost -c "select insert_observations(1000 * $PATIENTS);"
-	  time psql proto -U postgres -p 5432 -h localhost -c "select insert_medicationstatements(100 * $PATIENTS);"
+    docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/create_tables.sql &> /dev/null
+    docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/functions.sql &> /dev/null
+    time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_patients($PATIENTS);"
+	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_observations(1000 * $PATIENTS);"
+	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_medicationstatements(100 * $PATIENTS);"
 
     echo "benchmark $PATIENTS" > $PATIENTS
 
@@ -59,9 +61,11 @@ for PATIENTS in $RANGE; do
 done;
 
 echo "DATABASE INFORMATION"
-psql proto -U postgres -p 5432 -h localhost -f util/db_information.sql
+docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/db_information.sql
 
 echo "BENCHMARK RESULTS"
 paste $RANGE | awk '{for(x=1;x<=NF;x++)if(!(x % 2) || (x == 1))printf "%s", $x (x == NF || x == (NF-1)?"\n":" ")}' | column -t
 
 yes | rm $RANGE
+
+docker-compose down

@@ -9,6 +9,7 @@ services:
       - ./data:/data
       - ./seed-data:/seed-data
       - ./benchmarks:/benchmarks
+      - ./util:/util
     environment:
       POSTGRES_USER: ghost
       POSTGRES_DB: proto
