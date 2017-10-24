@@ -34,7 +34,23 @@ while getopts ':hr:c:t:' option; do
     esac
 done
 
+function cleanup {
+    docker-compose down
+    rm -rf "$WORK_DIR"
+}
+
+# register the cleanup function to be called on the EXIT signal
+trap cleanup EXIT
+
 docker-compose up -d
+
+WORK_DIR=`mktemp -d`
+
+# check if tmp dir was created
+if [[ ! "$WORK_DIR" || ! -d "$WORK_DIR" ]]; then
+    echo "Could not create temp dir"
+    exit 1
+fi
 
 for PATIENTS in $RANGE; do
     docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/create_tables.sql &> /dev/null
@@ -43,19 +59,19 @@ for PATIENTS in $RANGE; do
 	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_observations(1000 * $PATIENTS);"
 	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_medicationstatements(100 * $PATIENTS);"
 
-    echo "benchmark $PATIENTS" > $PATIENTS
+    echo "benchmark $PATIENTS" > $WORK_DIR/$PATIENTS
 
     for TEST in $(ls benchmarks/*.sql); do
         docker exec -it aiddb pgbench -c $CONCURRENCY -j 2 -r -t $TRANSACTIONS -s $PATIENTS -f $TEST proto > results.txt
         TPS=$(grep "(including connections establishing)" results.txt | cut -d " " -f 3 | xargs printf "%.0f")
-        echo "$TEST $TPS" >> $PATIENTS
+        echo "$TEST $TPS" >> $WORK_DIR/$PATIENTS
         rm results.txt
     done;
 
     for TEST in $(ls benchmarks/*.sql); do
         docker exec -it aiddb pgbench -c $CONCURRENCY -j 2 -r -t $TRANSACTIONS -s $PATIENTS -f $TEST@9 -f benchmarks/insert/observations.sql@1 proto > results.txt
         TPS=$(grep "(including connections establishing)" results.txt | cut -d " " -f 3 | xargs printf "%.0f")
-        echo "$TEST-insert $TPS" >> $PATIENTS
+        echo "$TEST-insert $TPS" >>  $WORK_DIR/$PATIENTS
         rm results.txt
     done;
 done;
@@ -64,8 +80,4 @@ echo "DATABASE INFORMATION"
 docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/db_information.sql
 
 echo "BENCHMARK RESULTS"
-paste $RANGE | awk '{for(x=1;x<=NF;x++)if(!(x % 2) || (x == 1))printf "%s", $x (x == NF || x == (NF-1)?"\n":" ")}' | column -t
-
-yes | rm $RANGE
-
-docker-compose down
+paste $WORK_DIR/$RANGE | awk '{for(x=1;x<=NF;x++)if(!(x % 2) || (x == 1))printf "%s", $x (x == NF || x == (NF-1)?"\n":" ")}' | column -t
