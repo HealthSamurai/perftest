@@ -98,8 +98,8 @@ DROP TYPE resource_status CASCADE;
 CREATE TYPE resource_status AS ENUM ('created', 'updated', 'deleted');
 
 DROP TABLE IF EXISTS patient;
-CREATE TABLE patient (
-    id text PRIMARY KEY,
+CREATE UNLOGGED TABLE patient (
+    id text,
     txid bigint NOT NULL,
     ts timestamp with time zone DEFAULT now(),
     resource_type text DEFAULT 'Patient'::text,
@@ -113,8 +113,8 @@ CREATE SEQUENCE patient_id;
 ALTER TABLE patient OWNER TO postgres;
 
 DROP TABLE IF EXISTS observation;
-CREATE TABLE observation (
-    id text PRIMARY KEY,
+CREATE UNLOGGED TABLE observation (
+    id text,
     txid bigint NOT NULL,
     ts timestamp with time zone DEFAULT now(),
     resource_type text DEFAULT 'Observation'::text,
@@ -128,8 +128,8 @@ CREATE SEQUENCE observation_id;
 ALTER TABLE observation OWNER TO postgres;
 
 DROP TABLE IF EXISTS medicationstatement;
-CREATE TABLE medicationstatement (
-    id text PRIMARY KEY,
+CREATE UNLOGGED TABLE medicationstatement (
+    id text,
     txid bigint NOT NULL,
     ts timestamp with time zone DEFAULT now(),
     resource_type text DEFAULT 'MedicationStatement'::text,
@@ -140,5 +140,4 @@ CREATE TABLE medicationstatement (
 DROP SEQUENCE medicationstatement_id;
 CREATE SEQUENCE medicationstatement_id;
 
-CREATE INDEX idx_medicationstatement_resource ON medicationstatement USING GIN ((resource) jsonb_path_ops);
 ALTER TABLE medicationstatement OWNER TO postgres;
