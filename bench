@@ -2,6 +2,7 @@
 export RANGE=${RANGE:-1 10 100}
 export CONCURRENCY=${CONCURRENCY:-4}
 export TRANSACTIONS=${TRANSACTIONS:-1000}
+export PORT=${PORT:-5432}
 
 usage="$(basename "$0") [-h] [-r \"s\"] [-c n] [-t n] -- benchmark database for aidbox.
 Script takes list of database sizes (via patients count in db) and performs set of benchamrks for each size.
@@ -36,16 +37,17 @@ done
 
 function cleanup {
     docker-compose down
-    rm -rf "$WORK_DIR"
+    # rm -rf "$WORK_DIR"
 }
 
 # register the cleanup function to be called on the EXIT signal
 trap cleanup EXIT
 
-docker-compose up -d
-
+# unique id of of benchmark. used in db for storing db sizes data
 RUN=`date +"%s"`
 WORK_DIR=`mktemp -d`
+
+echo "Results are stored at $WORK_DIR;"
 
 # check if tmp dir was created
 if [[ ! "$WORK_DIR" || ! -d "$WORK_DIR" ]]; then
@@ -53,42 +55,52 @@ if [[ ! "$WORK_DIR" || ! -d "$WORK_DIR" ]]; then
     exit 1
 fi
 
+mkdir $WORK_DIR/benchmarks
+
 for PATIENTS in $RANGE; do
-    docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/create_tables.sql &> /dev/null
-    docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/functions.sql &> /dev/null
-    time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_patients($PATIENTS);"
-	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_observations(1000 * $PATIENTS);"
-	  time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "select insert_medicationstatements(100 * $PATIENTS);"
-    time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/indexes.sql
-    time docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/save_db_sizes.sql -v size=$PATIENTS -v run=$RUN
+    docker-compose up -d
+    # wait until postgres in docker is ready
+    sleep 5;
+
+    docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -f /util/create_tables.sql &> /dev/null
+    docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -f /util/functions.sql &> /dev/null
+    time docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -c "select insert_patients($PATIENTS);"
+    time docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -c "select insert_observations(1000 * $PATIENTS);"
+    time docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -c "select insert_medicationstatements(100 * $PATIENTS);"
+    time docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -f /util/indexes.sql
+    docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -f /util/save_db_sizes.sql -v size=$PATIENTS -v run=$RUN > /dev/null
 
     echo "benchmark $PATIENTS" > $WORK_DIR/$PATIENTS
 
     for TEST in $(ls benchmarks/*.sql); do
-        docker exec -it aiddb pgbench -c $CONCURRENCY -j 2 -r -t $TRANSACTIONS -s $PATIENTS -f $TEST proto > results.txt
-        TPS=$(grep "(including connections establishing)" results.txt | cut -d " " -f 3 | xargs printf "%.0f")
+        docker exec -it aiddb pgbench -c $CONCURRENCY -L 100 -j 2 -r -t $TRANSACTIONS -s $PATIENTS -f $TEST proto > "$WORK_DIR/$TEST-$PATIENTS.txt"
+        TPS=$(grep "(including connections establishing)" "$WORK_DIR/$TEST-$PATIENTS.txt" | cut -d " " -f 3 | xargs printf "%.0f")
         echo "$TEST $TPS" >> $WORK_DIR/$PATIENTS
-        rm results.txt
     done;
 
     for TEST in $(ls benchmarks/*.sql); do
-        docker exec -it aiddb pgbench -c $CONCURRENCY -j 2 -r -t $TRANSACTIONS -s $PATIENTS -f $TEST@9 -f benchmarks/insert/observations.sql@1 proto > results.txt
-        TPS=$(grep "(including connections establishing)" results.txt | cut -d " " -f 3 | xargs printf "%.0f")
+        docker exec -it aiddb pgbench -c $CONCURRENCY -L 100 -j 2 -r -t $TRANSACTIONS -s $PATIENTS -f $TEST@9 -f benchmarks/insert/observations.sql@1 proto > "$WORK_DIR/$TEST-insert-$PATIENTS.txt"
+        TPS=$(grep "(including connections establishing)" "$WORK_DIR/$TEST-insert-$PATIENTS.txt" | cut -d " " -f 3 | xargs printf "%.0f")
         echo "$TEST-insert $TPS" >>  $WORK_DIR/$PATIENTS
-        rm results.txt
     done;
+
+    docker-compose down
 done;
 
+docker-compose up -d
+sleep 5;
+
+# creating custom type for displaying db sizes data
 TYPE=""
 for SIZE in $RANGE; do
 TYPE="$TYPE \"$SIZE\" bigint,"
 done;
-s="CREATE type json_type AS (${TYPE::-1});"
+STATEMENT="CREATE type json_type AS (${TYPE::-1});"
+docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -c "DROP TYPE json_type;"
+docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -c "$STATEMENT"
 
 echo "DATABASE INFORMATION"
-docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "DROP TYPE json_type;"
-docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -c "$s"
-docker exec -it aiddb psql proto -U postgres -p 5432 -h localhost -f /util/db_information.sql -v run=$RUN
+docker exec -it aiddb psql proto -U postgres -p $PORT -h localhost -f /util/db_information.sql -v run=$RUN
 
 echo "BENCHMARK RESULTS"
 paste $WORK_DIR/* | awk '{for(x=1;x<=NF;x++)if(!(x % 2) || (x == 1))printf "%s", $x (x == NF || x == (NF-1)?"\n":" ")}' | column -t
