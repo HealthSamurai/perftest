@@ -354,80 +354,208 @@ with observations_source as (
     INSERT into medicationstatement (id, txid, status, resource)
     SELECT (obj->>'id'), 0, 'created', obj
     FROM (
-      SELECT
-        json_build_object(
-         'resourceType', 'MedicationStatement',
-         'id', nextval('medicationstatement_id'),
-         'meta', json_build_object(
-            'versionId', gen_random_uuid(),
-            'lastUpdated', CURRENT_TIMESTAMP
-          ),
-         'identifier', ARRAY[
-           json_build_object(
-            'use', 'official',
-            'system', 'http://www.bmc.nl/portal/medstatements',
-            'value', random(11111111111, 9999999999)
-          )],
-         'status', 'active',
-         'category', json_build_object('coding', ARRAY[
-           json_build_object(
-             'system', 'http://hl7.org/fhir/medication-statement-category',
-             'code', 'inpatient',
-             'display', 'Inpatient')]),
-         'medication', json_build_object(
-           'reference', json_build_object(
-             'reference', '#med' || random(1, 1000)::text),
-             'effectiveDateTime', random_date(),
-             'dateAsserted', random_date()),
-         'subject', json_build_object(
-            'id', patient_id,
-            'resourceType', 'Patient',
-            'display', patient_name || ' '::text || patient_family),
-         'informationSource', json_build_object(
-            'id', patient_id,
-            'resourceType', 'Patient',
-            'display', patient_name || ' '::text || patient_family),
-         'taken', 'y',
-         'reasonCode', ARRAY[
-           json_build_object('coding',
-             ARRAY[
-               json_build_object(
-                 'system', 'http://snomed.info/sct',
-                 'code', random(11111111, 9999999),
-                 'display', 'Restless Legs')])],
-          'dosage', ARRAY[
-            json_build_object(
-              'sequence', 1,
-              'text', '1-2 tablets once daily',
-              'timing', json_build_object(
-                          'repeat', json_build_object(
-                            'frequency', 1,
-                            'period', 1,
-                            'periodUnit', 'd')),
-           'asNeededCodeableConcept', json_build_object(
-             'coding', ARRAY[
-               json_build_object(
-                 'system', 'http://snomed.info/sct',
-                  'code', random(1111111,9999999),
-                  'display', 'Restless Legs')]),
-           'route', json_build_object(
-             'coding', ARRAY[
-               json_build_object(
-                 'system', 'http://snomed.info/sct',
-                 'code', random(1111111,9999999),
-                 'display', 'Oral Route')]),
-            'doseRange', json_build_object(
-              'low', json_build_object(
-                'value', 1,
-                'unit', 'TAB',
-                'code', 'TAB',
-                'system', 'http://hl7.org/fhir/v3/orderableDrugForm'),
-              'high', json_build_object(
-                'value', 2,
-                'unit', 'TAB',
-                'code', 'TAB',
-                'system', 'http://hl7.org/fhir/v3/orderableDrugForm')))
-        ])::jsonb as obj
+      SELECT format('{
+  "resourceType": "MedicationStatement",
+  "id": %I,
+  "meta": {
+     "versionId": %I,
+     "lastUpdated": %I
+  },
+  "contained": [
+    {
+      "resourceType": "Medication",
+      "id": "med0309",
+      "code": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/sid/ndc",
+            "code": "50580-506-02",
+            "display": "Tylenol PM"
+          }
+        ]
+      },
+      "isBrand": true,
+      "form": {
+        "coding": [
+          {
+            "system": "http://snomed.info/sct",
+            "code": "385057009",
+            "display": "Film-coated tablet (qualifier value)"
+          }
+        ]
+      },
+      "ingredient": [
+        {
+          "itemCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                "code": "315266",
+                "display": "Acetaminophen 500 MG"
+              }
+            ]
+          },
+          "amount": {
+            "numerator": {
+              "value": 500,
+              "system": "http://unitsofmeasure.org",
+              "code": "mg"
+            },
+            "denominator": {
+              "value": 1,
+              "system": "http://hl7.org/fhir/v3/orderableDrugForm",
+              "code": "Tab"
+            }
+          }
+        },
+        {
+          "itemCodeableConcept": {
+            "coding": [
+              {
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                "code": "901813",
+                "display": "Diphenhydramine Hydrochloride 25 mg"
+              }
+            ]
+          },
+          "amount": {
+            "numerator": {
+              "value": 25,
+              "system": "http://unitsofmeasure.org",
+              "code": "mg"
+            },
+            "denominator": {
+              "value": 1,
+              "system": "http://hl7.org/fhir/v3/orderableDrugForm",
+              "code": "Tab"
+            }
+          }
+        }
+      ],
+      "package": {
+        "batch": [
+          {
+            "lotNumber": "9494788",
+            "expirationDate": "2017-05-22"
+          }
+        ]
+      }
+    }
+  ],
+  "identifier": [
+    {
+      "use": "official",
+      "system": "http://www.bmc.nl/portal/medstatements",
+      "value": "12345689"
+    }
+  ],
+  "status": "active",
+  "category": {
+    "coding": [
+      {
+        "system": "http://hl7.org/fhir/medication-statement-category",
+        "code": "inpatient",
+        "display": "Inpatient"
+      }
+    ]
+  },
+  "medication": {
+     "reference": {
+        "reference": "#med0309",
+        "effectiveDateTime": "2015-01-23",
+        "dateAsserted": "2015-02-22"
+   }
+  },
+  "informationSource": {
+    "id": %I,
+    "resourceType": "Patient",
+    "display": %I
+  },
+  "subject": {
+    "id": %I,
+    "resourceType": "Patient",
+    "display": %I
+  },
+  "derivedFrom": [
+    {
+      "reference": "MedicationRequest/medrx002"
+    }
+  ],
+  "taken": "n",
+  "reasonCode": [
+    {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "32914008",
+          "display": "Restless Legs"
+        }
+      ]
+    }
+  ],
+  "note": [
+    {
+      "text": "Patient indicates they miss the occasional dose"
+    }
+  ],
+  "dosage": [
+    {
+      "sequence": 1,
+      "text": "1-2 tablets once daily at bedtime as needed for restless legs",
+      "additionalInstruction": [
+        {
+          "text": "Taking at bedtime"
+        }
+      ],
+      "timing": {
+        "repeat": {
+          "frequency": 1,
+          "period": 1,
+          "periodUnit": "d"
+        }
+      },
+      "asNeededCodeableConcept": {
+        "coding": [
+          {
+            "system": "http://snomed.info/sct",
+            "code": "32914008",
+            "display": "Restless Legs"
+          }
+        ]
+      },
+      "route": {
+        "coding": [
+          {
+            "system": "http://snomed.info/sct",
+            "code": "26643006",
+            "display": "Oral Route"
+          }
+        ]
+      },
+      "doseRange": {
+        "low": {
+          "value": 1,
+          "unit": "TAB",
+          "system": "http://hl7.org/fhir/v3/orderableDrugForm",
+          "code": "TAB"
+        },
+        "high": {
+          "value": 2,
+          "unit": "TAB",
+          "system": "http://hl7.org/fhir/v3/orderableDrugForm",
+          "code": "TAB"
+        }
+      }
+    }
+  ]
+}', nextval('medicationstatement_id'),
+    gen_random_uuid(),
+    CURRENT_TIMESTAMP,
+    patient_id,
+    patient_name || ' '::text || patient_family,
+    patient_id,
+    patient_name || ' '::text || patient_family
+    )::json as obj
         FROM medicationstatement_data
         LIMIT _total_count_
     ) _
